@@ -12,14 +12,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const course = findCourseById(params.id);
   if (!course) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
 
-  const user = findUserById(decoded.id);
+  const user = await findUserById(decoded.id);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   if (user.enrolledCourses.includes(params.id)) {
     return NextResponse.json({ message: 'Already enrolled', enrolled: true });
   }
 
-  const updated = updateUser(decoded.id, {
+  const updated = await updateUser(decoded.id, {
     enrolledCourses: [...user.enrolledCourses, params.id],
   });
 

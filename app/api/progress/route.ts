@@ -12,14 +12,14 @@ export async function POST(req: NextRequest) {
   const { lessonId } = await req.json();
   if (!lessonId) return NextResponse.json({ error: 'lessonId required' }, { status: 400 });
 
-  const user = findUserById(decoded.id);
+  const user = await findUserById(decoded.id);
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   if (user.completedLessons.includes(lessonId)) {
     return NextResponse.json({ completedLessons: user.completedLessons });
   }
 
-  const updated = updateUser(decoded.id, {
+  const updated = await updateUser(decoded.id, {
     completedLessons: [...user.completedLessons, lessonId],
   });
 
