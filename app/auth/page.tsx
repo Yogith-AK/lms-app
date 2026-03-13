@@ -33,7 +33,7 @@ function AuthForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Something went wrong'); return; }
-      router.push('/dashboard');
+      router.push('/courses');
     } catch {
       setError('Network error. Please try again.');
     } finally {

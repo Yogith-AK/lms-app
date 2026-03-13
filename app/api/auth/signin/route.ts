@@ -10,12 +10,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
   }
 
-  const user = findUserByEmail(email.toLowerCase());
+  const user = await findUserByEmail(email.toLowerCase());
   if (!user) {
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
   }
 
-  const isValid = await bcrypt.compare(password, user.password);
+  // Neon returns lowercase column names
+  const hashedPassword = user.password || (user as any).password;
+  if (!hashedPassword) {
+    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+  }
+
+  const isValid = await bcrypt.compare(password, hashedPassword);
   if (!isValid) {
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
   }
@@ -35,7 +41,7 @@ export async function POST(req: NextRequest) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 7,
     path: '/',
   });
 

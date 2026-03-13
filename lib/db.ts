@@ -1,18 +1,74 @@
-import { Course, User } from '@/types';
+import { neon } from '@neondatabase/serverless';
+import { User, Course } from '@/types';
 
-// In-memory store (for production, replace with a real DB like Postgres/MongoDB)
-export const users: User[] = [
-  {
-    id: 'user_1',
-    name: 'Demo Student',
-    email: 'demo@learnhub.com',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
-    enrolledCourses: ['course_1', 'course_2'],
-    completedLessons: ['lesson_1_1', 'lesson_1_2'],
-    createdAt: '2024-01-01',
+const sql = neon(process.env.DATABASE_URL!);
+
+// ─── Create tables on first run ───────────────────────────────
+export async function initDB() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      enrolled_courses TEXT DEFAULT '[]',
+      completed_lessons TEXT DEFAULT '[]',
+      created_at TEXT DEFAULT ''
+    )
+  `;
+}
+
+// ─── User helpers ──────────────────────────────────────────────
+export async function findUserByEmail(email: string): Promise<User | undefined> {
+  await initDB();
+  const rows = await sql`SELECT * FROM users WHERE email = ${email}`;
+  if (!rows[0]) return undefined;
+  return {
+    ...rows[0],
+    enrolledCourses: JSON.parse(rows[0].enrolled_courses || '[]'),
+    completedLessons: JSON.parse(rows[0].completed_lessons || '[]'),
+  } as User;
+}
+
+export async function findUserById(id: string): Promise<User | undefined> {
+  await initDB();
+  const rows = await sql`SELECT * FROM users WHERE id = ${id}`;
+  if (!rows[0]) return undefined;
+  return {
+    ...rows[0],
+    enrolledCourses: JSON.parse(rows[0].enrolled_courses || '[]'),
+    completedLessons: JSON.parse(rows[0].completed_lessons || '[]'),
+  } as User;
+}
+
+export async function createUser(user: User): Promise<void> {
+  await initDB();
+  await sql`
+    INSERT INTO users (id, name, email, password, enrolled_courses, completed_lessons, created_at)
+    VALUES (
+      ${user.id},
+      ${user.name},
+      ${user.email},
+      ${user.password},
+      ${JSON.stringify(user.enrolledCourses)},
+      ${JSON.stringify(user.completedLessons)},
+      ${user.createdAt}
+    )
+  `;
+}
+
+export async function updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+  await initDB();
+  if (updates.enrolledCourses !== undefined) {
+    await sql`UPDATE users SET enrolled_courses = ${JSON.stringify(updates.enrolledCourses)} WHERE id = ${id}`;
   }
-];
+  if (updates.completedLessons !== undefined) {
+    await sql`UPDATE users SET completed_lessons = ${JSON.stringify(updates.completedLessons)} WHERE id = ${id}`;
+  }
+  return (await findUserById(id)) ?? null;
+}
 
+// ─── Courses (static, no DB needed) ───────────────────────────
 export const courses: Course[] = [
   {
     id: 'course_1',
@@ -22,13 +78,8 @@ export const courses: Course[] = [
     instructor: 'Dr. Priya Sharma',
     instructorBio: 'IIT Delhi alumna with 10+ years of teaching CS fundamentals.',
     thumbnail: 'https://img.youtube.com/vi/rfscVS0vtbw/maxresdefault.jpg',
-    category: 'Programming',
-    level: 'Beginner',
-    duration: '12h 30m',
-    lessonsCount: 8,
-    rating: 4.8,
-    studentsCount: 24300,
-    color: '#f97316',
+    category: 'Programming', level: 'Beginner', duration: '12h 30m',
+    lessonsCount: 8, rating: 4.8, studentsCount: 24300, color: '#f97316',
     tags: ['Python', 'Programming', 'Beginner', 'Coding'],
     lessons: [
       { id: 'lesson_1_1', title: 'Introduction to Python', description: 'What is Python and why learn it?', videoId: 'rfscVS0vtbw', duration: '4:26:52', order: 1 },
@@ -45,17 +96,11 @@ export const courses: Course[] = [
     id: 'course_2',
     title: 'Mathematics Fundamentals',
     description: 'Master algebra, geometry, and calculus concepts with visual explanations.',
-    longDescription: 'Build a rock-solid math foundation. This course uses visual proofs and real-world examples to make abstract concepts tangible. Covers algebra, coordinate geometry, trigonometry, and an introduction to calculus — perfect for students preparing for competitive exams.',
-    instructor: 'Prof. Arjun Nair',
-    instructorBio: 'Former JEE Advanced topper and IISc research scholar.',
+    longDescription: 'Build a rock-solid math foundation covering algebra, coordinate geometry, trigonometry, and an introduction to calculus.',
+    instructor: 'Prof. Arjun Nair', instructorBio: 'Former JEE Advanced topper and IISc research scholar.',
     thumbnail: 'https://img.youtube.com/vi/WnjQTJAj4FU/maxresdefault.jpg',
-    category: 'Mathematics',
-    level: 'Intermediate',
-    duration: '18h 45m',
-    lessonsCount: 6,
-    rating: 4.9,
-    studentsCount: 41200,
-    color: '#8b5cf6',
+    category: 'Mathematics', level: 'Intermediate', duration: '18h 45m',
+    lessonsCount: 6, rating: 4.9, studentsCount: 41200, color: '#8b5cf6',
     tags: ['Math', 'Algebra', 'Calculus', 'Geometry'],
     lessons: [
       { id: 'lesson_2_1', title: 'Algebra Basics', description: 'Equations, inequalities and expressions.', videoId: 'NybHckSEQBI', duration: '12:04', order: 1 },
@@ -70,17 +115,11 @@ export const courses: Course[] = [
     id: 'course_3',
     title: 'Web Development Bootcamp',
     description: 'Build modern websites from scratch with HTML, CSS and JavaScript.',
-    longDescription: 'Go from complete beginner to building fully functional websites. Learn the technologies that power the internet — HTML for structure, CSS for styling, and JavaScript for interactivity. By the end, you\'ll deploy your own portfolio website.',
-    instructor: 'Meera Iyer',
-    instructorBio: 'Senior Frontend Engineer at a top-tier startup, coding educator for 7 years.',
+    longDescription: 'Go from complete beginner to building fully functional websites with HTML, CSS, and JavaScript.',
+    instructor: 'Meera Iyer', instructorBio: 'Senior Frontend Engineer at a top-tier startup, coding educator for 7 years.',
     thumbnail: 'https://img.youtube.com/vi/G3e-cpL7ofc/maxresdefault.jpg',
-    category: 'Web Dev',
-    level: 'Beginner',
-    duration: '22h 00m',
-    lessonsCount: 7,
-    rating: 4.7,
-    studentsCount: 31800,
-    color: '#06b6d4',
+    category: 'Web Dev', level: 'Beginner', duration: '22h 00m',
+    lessonsCount: 7, rating: 4.7, studentsCount: 31800, color: '#06b6d4',
     tags: ['HTML', 'CSS', 'JavaScript', 'Web', 'Frontend'],
     lessons: [
       { id: 'lesson_3_1', title: 'HTML Essentials', description: 'Structure your first webpage with HTML.', videoId: 'G3e-cpL7ofc', duration: '1:01:35', order: 1 },
@@ -96,17 +135,11 @@ export const courses: Course[] = [
     id: 'course_4',
     title: 'Physics: Mechanics & Waves',
     description: 'Deep-dive into classical mechanics, motion, forces, and wave phenomena.',
-    longDescription: 'Understand the physical world around you. Starting from Newton\'s laws and progressing to energy, momentum, oscillations, and wave mechanics. Includes animated visualizations and derivations that make the mathematics intuitive.',
-    instructor: 'Dr. Rajan Kapoor',
-    instructorBio: 'PhD from TIFR, JEE Physics expert with 15 years of teaching.',
+    longDescription: 'Understand the physical world starting from Newton\'s laws through energy, momentum, oscillations, and wave mechanics.',
+    instructor: 'Dr. Rajan Kapoor', instructorBio: 'PhD from TIFR, JEE Physics expert with 15 years of teaching.',
     thumbnail: 'https://img.youtube.com/vi/ZM8ECpBuQYE/maxresdefault.jpg',
-    category: 'Science',
-    level: 'Advanced',
-    duration: '16h 20m',
-    lessonsCount: 6,
-    rating: 4.9,
-    studentsCount: 18900,
-    color: '#10b981',
+    category: 'Science', level: 'Advanced', duration: '16h 20m',
+    lessonsCount: 6, rating: 4.9, studentsCount: 18900, color: '#10b981',
     tags: ['Physics', 'Mechanics', 'Waves', 'JEE', 'Science'],
     lessons: [
       { id: 'lesson_4_1', title: 'Newton\'s Laws of Motion', description: 'Force, mass, acceleration and the three laws.', videoId: 'ZM8ECpBuQYE', duration: '16:30', order: 1 },
@@ -119,30 +152,6 @@ export const courses: Course[] = [
   },
 ];
 
-// Helper to find user by email
-export function findUserByEmail(email: string): User | undefined {
-  return users.find(u => u.email === email);
-}
-
-// Helper to find user by id
-export function findUserById(id: string): User | undefined {
-  return users.find(u => u.id === id);
-}
-
-// Helper to find course by id
 export function findCourseById(id: string): Course | undefined {
   return courses.find(c => c.id === id);
-}
-
-// Add a new user
-export function createUser(user: User): void {
-  users.push(user);
-}
-
-// Update user data
-export function updateUser(id: string, updates: Partial<User>): User | null {
-  const idx = users.findIndex(u => u.id === id);
-  if (idx === -1) return null;
-  users[idx] = { ...users[idx], ...updates };
-  return users[idx];
 }

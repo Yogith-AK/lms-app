@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
   }
 
-  const existing = findUserByEmail(email.toLowerCase());
+  const existing = await findUserByEmail(email.toLowerCase());
   if (existing) {
     return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
   }
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     createdAt: new Date().toISOString(),
   };
 
-  createUser(newUser);
+  await createUser(newUser);
 
   const authUser = {
     id: newUser.id,

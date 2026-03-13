@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const decoded = verifyToken(token);
   if (!decoded) return NextResponse.json({ user: null });
 
-  const user = findUserById(decoded.id);
+  const user = await findUserById(decoded.id);
   if (!user) return NextResponse.json({ user: null });
 
   return NextResponse.json({
