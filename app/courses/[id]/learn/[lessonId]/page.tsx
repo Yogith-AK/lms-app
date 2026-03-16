@@ -25,7 +25,7 @@ export default function LearnPage() {
       const meData = await meRes.json();
       if (!meData.user) { router.push('/auth'); return; }
       if (!courseData.course) { router.push('/courses'); return; }
-      if (!meData.user.enrolledCourses.includes(id)) { router.push(`/courses/${id}`); return; }
+      
 
       setCourse(courseData.course);
       setUser(meData.user);

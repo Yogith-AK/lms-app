@@ -42,13 +42,19 @@ export default function CourseDetailPage() {
   }, [id]);
 
   const handleEnroll = async () => {
-    if (!user) { router.push('/auth'); return; }
-    setEnrolling(true);
-    const res = await fetch(`/api/courses/${id}/enroll`, { method: 'POST' });
-    const data = await res.json();
-    if (res.ok) setEnrolled(true);
-    setEnrolling(false);
-  };
+  if (!user) { router.push('/auth'); return; }
+  setEnrolling(true);
+  const res = await fetch(`/api/courses/${id}/enroll`, { method: 'POST' });
+  const data = await res.json();
+  if (res.ok || data.enrolled) {
+    setEnrolled(true);
+    // Force refresh user data
+    const meRes = await fetch('/api/auth/me');
+    const meData = await meRes.json();
+    if (meData.user) setUser(meData.user);
+  }
+  setEnrolling(false);
+};
 
   if (loading) return (
     <>
@@ -126,7 +132,10 @@ export default function CourseDetailPage() {
                     <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm font-semibold text-center mb-3">
                       ✓ You're enrolled
                     </div>
-                    <Link href={`/courses/${id}/learn/${course.lessons[0].id}`} className="btn-primary w-full block text-center">
+                    <Link href={`/courses/${id}/learn/${course.lessons[0].id}`} className="btn-primary w-full block text-center"
+                      onClick={(e) => {
+                        if (!user) { e.preventDefault(); router.push('/auth'); }
+                      }}>
                       Continue Learning →
                     </Link>
                   </div>
